@@ -1,2 +1,15 @@
 ---
-# vars file for prov__steam
+
+pipewire:
+  directory:
+    config: /etc/pipewire
+  pulse:
+    service: /usr/lib/systemd/user/pipewire-pulse.socket
+    socket: /tmp/pulse-socket
+steam:
+  packages:
+    - dbus-x11
+    - steam
+  user: steam
+
+...
