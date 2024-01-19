@@ -1,0 +1,111 @@
+---
+
+- name: ensure tasks run only on selected os releases
+  block:
+
+    - name: "enables running steam as the {{ steam.user }} user via sudo"
+      ansible.builtin.debug:
+        msg: changes will be made to pipewire-pulse to allow audio sharing
+        verbosity: 0
+      delegate_to: localhost
+      run_once: true
+
+    - name: "create {{ steam.user }} user"
+      ansible.builtin.user:
+        name: "{{ steam.user }}"
+        home: "/home/{{ steam.user }}"
+        system: true
+        groups: games,audio
+
+    - name: fall back to using chown if the recursion depth limit is reached
+      block:
+
+        - name: "ensure /home/{{ steam.user }} is owned by {{ steam.user }}"
+          ansible.builtin.file:
+            path: "/home/{{ steam.user }}"
+            recurse: true
+            owner: "{{ steam.user }}"
+            group: "{{ steam.user }}"
+
+      rescue:
+
+        - name: "ensure /home/{{ steam.user }} is owned by {{ steam.user }} using chown"
+          ansible.builtin.command:
+            cmd: "/usr/bin/chown -R {{ steam.user }}:{{ steam.user }} /home/{{ steam.user }}"
+
+    - name: remove default pipewire-pulse socket in systemd service file
+      ansible.builtin.lineinfile:
+        path: "{{ pipewire.pulse.service }}"
+        regexp: '^.*ListenStream=%t/pulse/native'
+        state: absent
+
+    - name: create custom pipewire-pulse socket in systemd service file
+      ansible.builtin.blockinfile:
+        path: "{{ pipewire.pulse.service }}"
+        marker: "##### {mark} custom pipewire-pulse socket #####"
+        insertafter: "\\[Socket\\]"
+        block: |
+          ExecStartPre=rm -f {{ pipewire.pulse.socket }}
+          ExecStopPost=rm -f {{ pipewire.pulse.socket }}
+          ListenStream={{ pipewire.pulse.socket }}
+          SocketGroup=audio
+          SocketMode=0660
+
+    - name: create default pipewire-pulse configuration
+      ansible.builtin.copy:
+        src: /usr/share/pipewire/pipewire-pulse.conf
+        dest: "{{ pipewire.directory.config }}/pipewire-pulse.conf"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: update socket in default pipewire-pulse configuration
+      ansible.builtin.replace:
+        path: "{{ pipewire.directory.config }}/pipewire-pulse.conf"
+        regexp: '#"unix:/tmp/something"'
+        replace: '"unix:{{ pipewire.pulse.socket }}"'
+
+    - name: set PULSE_SERVER environment variable
+      ansible.builtin.copy:
+        dest: /etc/profile.d/pipewire-pulse.sh
+        content: "export PULSE_SERVER={{ pipewire.pulse.socket }}"
+
+    - name: create sudoers file for running steam
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/steam
+        content: "%games ALL=({{ steam.user }}) NOPASSWD:SETENV: /usr/bin/steam"
+
+    - name: create command-line application launcher
+      ansible.builtin.template:
+        src: templates/steam_sudo
+        dest: /usr/bin/steam_sudo
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: create graphical application launcher
+      ansible.builtin.template:
+        src: templates/steam_sudo.desktop
+        dest: /usr/share/applications/steam_sudo.desktop
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: how to run steam as a different user
+      ansible.builtin.debug:
+        msg: |
+          # make sure your user is a member of the audio and games groups - you may need to login again for the first item to take effect
+          sudo usermod -aG games,audio <your_user_name>
+          # option 1: run the following command manually to launch steam
+          xhost +; sudo -u {{ steam.user }} PULSE_SERVER=/tmp/pulse-socket XDG_RUNTIME_DIR=/tmp/{{ steam.user }} steam
+          # option 2: run the provided cli script
+          /usr/bin/steam_sudo
+          # option 3: run the provided desktop application
+          launch "Steam via sudo" in the graphical interface
+      delegate_to: localhost
+      run_once: true
+
+  when: ansible_distribution == "Fedora"
+
+...
