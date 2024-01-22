@@ -5,7 +5,10 @@
 
     - name: install steam
       ansible.builtin.debug:
-        msg: installs steam and all its prerequisites
+        msg: |
+          ----------------------------------------
+          installs steam and all its prerequisites
+          ----------------------------------------
         verbosity: 0
       delegate_to: localhost
       run_once: true

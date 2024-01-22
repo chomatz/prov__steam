@@ -3,9 +3,12 @@
 - name: ensure tasks run only on selected os releases
   block:
 
-    - name: "enables running steam as the {{ steam.user }} user via sudo"
+    - name: "create user {{ steam.user }} and its home directory"
       ansible.builtin.debug:
-        msg: changes will be made to pipewire-pulse to allow audio sharing
+        msg: |
+          --------------------------------------------------------
+          /home/{{ steam.user }} must be owned by {{ steam.user }}
+          --------------------------------------------------------
         verbosity: 0
       delegate_to: localhost
       run_once: true
@@ -32,6 +35,16 @@
         - name: "ensure /home/{{ steam.user }} is owned by {{ steam.user }} using chown"
           ansible.builtin.command:
             cmd: "/usr/bin/chown -R {{ steam.user }}:{{ steam.user }} /home/{{ steam.user }}"
+
+    - name: modify pipewire-pulse socket
+      ansible.builtin.debug:
+        msg: |
+          ------------------------------------------------------------
+          create a custom pipewire-pulse socket to allow audio sharing
+          ------------------------------------------------------------
+        verbosity: 0
+      delegate_to: localhost
+      run_once: true
 
     - name: remove default pipewire-pulse socket in systemd service file
       ansible.builtin.lineinfile:
@@ -71,6 +84,16 @@
         dest: /etc/profile.d/pipewire-pulse.sh
         content: "export PULSE_SERVER={{ pipewire.pulse.socket }}"
 
+    - name: steam via sudo
+      ansible.builtin.debug:
+        msg: |
+          ---------------------------------------------------------------------
+          configure system to allow steam to run as {{ steam.user }} using sudo
+          ---------------------------------------------------------------------
+        verbosity: 0
+      delegate_to: localhost
+      run_once: true
+
     - name: create sudoers file for running steam
       ansible.builtin.copy:
         dest: /etc/sudoers.d/steam
@@ -95,13 +118,21 @@
     - name: how to run steam as a different user
       ansible.builtin.debug:
         msg: |
-          # make sure your user is a member of the audio and games groups - you may need to login again for the first item to take effect
+          -----------------------------------------------------------------------------------------------------------------------------
+          make sure your user is a member of the audio and games groups - you may need to login again for the first item to take effect
+          -----------------------------------------------------------------------------------------------------------------------------
           sudo usermod -aG games,audio <your_user_name>
-          # option 1: run the following command manually to launch steam
+          ------------------------------------------------------------
+          option 1: run the following command manually to launch steam
+          ------------------------------------------------------------
           xhost +; sudo -u {{ steam.user }} PULSE_SERVER=/tmp/pulse-socket XDG_RUNTIME_DIR=/tmp/{{ steam.user }} steam
-          # option 2: run the provided cli script
+          -------------------------------------
+          option 2: run the provided cli script
+          -------------------------------------
           /usr/bin/steam_sudo
-          # option 3: run the provided desktop application
+          ----------------------------------------------
+          option 3: run the provided desktop application
+          ----------------------------------------------
           launch "Steam via sudo" in the graphical interface
       delegate_to: localhost
       run_once: true
