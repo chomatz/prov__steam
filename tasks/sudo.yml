@@ -18,7 +18,7 @@
         name: "{{ steam.user }}"
         home: "/home/{{ steam.user }}"
         system: true
-        groups: games,audio
+        groups: audio,input,games
 
     - name: fall back to using chown if the recursion depth limit is reached
       block:
