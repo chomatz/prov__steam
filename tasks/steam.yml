@@ -3,16 +3,6 @@
 - name: ensure tasks run only on selected os releases
   block:
 
-    - name: install steam
-      ansible.builtin.debug:
-        msg: |
-          ----------------------------------------
-          installs steam and all its prerequisites
-          ----------------------------------------
-        verbosity: 0
-      delegate_to: localhost
-      run_once: true
-
     - name: enable rpfusion repositories
       ansible.builtin.include_role:
         name: repo__rpm_fusion

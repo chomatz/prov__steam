@@ -3,16 +3,6 @@
 - name: ensure tasks run only on selected os releases
   block:
 
-    - name: "create user {{ steam.user }} and its home directory"
-      ansible.builtin.debug:
-        msg: |
-          --------------------------------------------------------
-          /home/{{ steam.user }} must be owned by {{ steam.user }}
-          --------------------------------------------------------
-        verbosity: 0
-      delegate_to: localhost
-      run_once: true
-
     - name: "create {{ steam.user }} user"
       ansible.builtin.user:
         name: "{{ steam.user }}"
@@ -35,16 +25,6 @@
         - name: "ensure /home/{{ steam.user }} is owned by {{ steam.user }} using chown"
           ansible.builtin.command:
             cmd: "/usr/bin/chown -R {{ steam.user }}:{{ steam.user }} /home/{{ steam.user }}"
-
-    - name: modify pipewire-pulse socket
-      ansible.builtin.debug:
-        msg: |
-          ------------------------------------------------------------
-          create a custom pipewire-pulse socket to allow audio sharing
-          ------------------------------------------------------------
-        verbosity: 0
-      delegate_to: localhost
-      run_once: true
 
     - name: remove default pipewire-pulse socket in systemd service file
       ansible.builtin.lineinfile:
@@ -83,16 +63,6 @@
       ansible.builtin.copy:
         dest: /etc/profile.d/pipewire-pulse.sh
         content: "export PULSE_SERVER={{ pipewire.pulse.socket }}"
-
-    - name: steam via sudo
-      ansible.builtin.debug:
-        msg: |
-          ---------------------------------------------------------------------
-          configure system to allow steam to run as {{ steam.user }} using sudo
-          ---------------------------------------------------------------------
-        verbosity: 0
-      delegate_to: localhost
-      run_once: true
 
     - name: create sudoers file for running steam
       ansible.builtin.copy:
