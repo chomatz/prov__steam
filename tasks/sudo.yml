@@ -44,6 +44,14 @@
           SocketGroup=audio
           SocketMode=0660
 
+    - name: create default pipewire directory
+      ansible.builtin.file:
+        path: /etc/pipewire
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
     - name: create default pipewire-pulse configuration
       ansible.builtin.copy:
         src: /usr/share/pipewire/pipewire-pulse.conf
